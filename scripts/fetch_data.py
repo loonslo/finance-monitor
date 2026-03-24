@@ -4,10 +4,25 @@ Finance Monitor - Fetch 10 financial indicators from CNBC via web_fetch.
 Writes to SQLite database.
 """
 
-import sqlite3, json, re, os, sys, argparse, pathlib, warnings
+import sqlite3, json, re, os, sys, argparse, pathlib, warnings, time
 from datetime import datetime
 from urllib.request import urlopen, Request
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
+
+# ── Error Classes ──────────────────────────────────────────────────────────────
+class FetchError(Exception):
+    """Raised when fetching fails after all retries."""
+    pass
+
+class RateLimitError(Exception):
+    """Raised when API rate limit is hit."""
+    def __init__(self, retry_after=60):
+        self.retry_after = retry_after
+        super().__init__(f"Rate limited, retry after {retry_after}s")
+
+class DatabaseError(Exception):
+    """Raised when database operation fails."""
+    pass
 
 # Fix Windows console encoding
 if sys.platform == "win32":
@@ -42,14 +57,55 @@ def check_path_safe(path_str, name):
         if pat in str(p):
             raise PermissionError(f"Refusing {name}='{path_str}' — system path detected.")
 
+# ── Config ────────────────────────────────────────────────────────────────────
+MAX_RETRIES = 3
+RETRY_DELAY = 5  # seconds
+RATE_LIMIT_DELAY = 60  # seconds
+
 # ── HTML Fetch ────────────────────────────────────────────────────────────────
-def fetch_html(url):
+def fetch_html(url, retries=MAX_RETRIES):
     req = Request(url, headers={
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "text/html,application/xhtml+xml",
     })
-    with urlopen(req, timeout=15) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    last_err = None
+    for attempt in range(retries):
+        try:
+            with urlopen(req, timeout=15) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except HTTPError as e:
+            last_err = e
+            if e.code == 429:
+                # Rate limited, respect Retry-After header
+                retry_after = int(e.headers.get('Retry-After', RATE_LIMIT_DELAY))
+                warnings.warn(f"Rate limited (429) for {url}, waiting {retry_after}s", UserWarning)
+                time.sleep(retry_after)
+                continue
+            elif e.code >= 500:
+                # Server error, retry
+                warnings.warn(f"Server error {e.code} for {url}, attempt {attempt+1}/{retries}", UserWarning)
+                if attempt < retries - 1:
+                    time.sleep(RETRY_DELAY * (attempt + 1))
+                continue
+            else:
+                # Client error (4xx), don't retry
+                raise FetchError(f"HTTP {e.code} for {url}: {e.reason}")
+        except URLError as e:
+            last_err = e
+            warnings.warn(f"URL error for {url}, attempt {attempt+1}/{retries}: {e.reason}", UserWarning)
+            if attempt < retries - 1:
+                time.sleep(RETRY_DELAY * (attempt + 1))
+        except TimeoutError as e:
+            last_err = e
+            warnings.warn(f"Timeout for {url}, attempt {attempt+1}/{retries}", UserWarning)
+            if attempt < retries - 1:
+                time.sleep(RETRY_DELAY * (attempt + 1))
+        except Exception as e:
+            last_err = e
+            warnings.warn(f"Unexpected error for {url}: {type(e).__name__}: {e}", UserWarning)
+            raise FetchError(f"Unexpected error: {e}") from e
+
+    raise FetchError(f"Failed after {retries} attempts: {last_err}")
 
 # ── Parsing ──────────────────────────────────────────────────────────────────
 def parse_float(s):
@@ -261,43 +317,77 @@ def main():
     fetch_date = now.strftime("%Y-%m-%d")
     fetch_time = now.strftime("%Y-%m-%d %H:%M")
 
+    # Fetch data with error tracking
     all_data = []
+    errors = []
     for ind in INDICATORS:
-        r = fetch_cnbc(ind)
-        if r and r.get("current_price") is not None:
-            # Calculate dist from 52w high/low
-            if r.get("current_price") and r.get("week52_high"):
-                r["dist_from_high_pct"] = round((r["current_price"] - r["week52_high"]) / r["week52_high"] * 100, 4)
-            if r.get("current_price") and r.get("week52_low"):
-                r["dist_from_low_pct"] = round((r["current_price"] - r["week52_low"]) / r["week52_low"] * 100, 4)
-            all_data.append(r)
+        try:
+            r = fetch_cnbc(ind)
+            if r and r.get("current_price") is not None:
+                # Calculate dist from 52w high/low
+                if r.get("current_price") and r.get("week52_high"):
+                    r["dist_from_high_pct"] = round((r["current_price"] - r["week52_high"]) / r["week52_high"] * 100, 4)
+                if r.get("current_price") and r.get("week52_low"):
+                    r["dist_from_low_pct"] = round((r["current_price"] - r["week52_low"]) / r["week52_low"] * 100, 4)
+                all_data.append(r)
+            elif r:
+                errors.append(f"{ind['code']}: No price extracted")
+        except FetchError as e:
+            errors.append(f"{ind['code']}: {e}")
+        except RateLimitError as e:
+            errors.append(f"{ind['code']}: Rate limited, retry after {e.retry_after}s")
+        except Exception as e:
+            errors.append(f"{ind['code']}: {type(e).__name__}: {e}")
 
+    # Check if all sources failed
     if not all_data:
-        warnings.warn("All sources failed. No data written.", UserWarning)
+        error_msg = f"All sources failed. Errors: {'; '.join(errors) if errors else 'Unknown'}"
+        warnings.warn(error_msg, UserWarning)
+        os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{fetch_time}] ERROR: {error_msg}\n")
+        print(f"\n❌ Failed | {fetch_time}")
+        print(f"Errors: {error_msg}")
+        sys.exit(1)
 
-    conn = init_db(db_path)
-    c = conn.cursor()
-    for d in all_data:
-        c.execute("""INSERT INTO indicators
-            (fetch_date, fetch_time, name_cn, code, prev_close, current_price,
-             after_hours, change_pct, week52_high, dist_from_high_pct,
-             week52_low, dist_from_low_pct, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (fetch_date, fetch_time, d["name_cn"], d["code"],
-             d["prev_close"], d["current_price"], d["after_hours"],
-             d["change_pct"], d["week52_high"], d["dist_from_high_pct"],
-             d["week52_low"], d["dist_from_low_pct"], d["source"]))
-    c.execute("INSERT INTO fetch_log (fetch_date,fetch_time,source,indicators_count) VALUES (?,?,?,?)",
-        (fetch_date, fetch_time, "cnbc", len(all_data)))
-    conn.commit()
-    conn.close()
+    # Write to database with error handling
+    try:
+        conn = init_db(db_path)
+        c = conn.cursor()
+        for d in all_data:
+            c.execute("""INSERT INTO indicators
+                (fetch_date, fetch_time, name_cn, code, prev_close, current_price,
+                 after_hours, change_pct, week52_high, dist_from_high_pct,
+                 week52_low, dist_from_low_pct, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (fetch_date, fetch_time, d["name_cn"], d["code"],
+                 d["prev_close"], d["current_price"], d["after_hours"],
+                 d["change_pct"], d["week52_high"], d["dist_from_high_pct"],
+                 d["week52_low"], d["dist_from_low_pct"], d["source"]))
+        c.execute("INSERT INTO fetch_log (fetch_date,fetch_time,source,indicators_count) VALUES (?,?,?,?)",
+            (fetch_date, fetch_time, "cnbc", len(all_data)))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        error_msg = f"Database error: {e}"
+        warnings.warn(error_msg, UserWarning)
+        print(f"\n❌ Database error | {fetch_time}")
+        print(f"Error: {error_msg}")
+        sys.exit(1)
 
+    # Write log
+    log_msg = f"[{fetch_time}] Fetched {len(all_data)} indicators -> {db_path}"
+    if errors:
+        log_msg += f" | Errors: {'; '.join(errors)}"
     os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as f:
-        f.write(f"[{fetch_time}] Fetched {len(all_data)} indicators -> {db_path}\n")
+        f.write(log_msg + "\n")
 
     print(f"\n✅ Data fetched | {fetch_time}")
-    print(f"📂 DB: {db_path}\n")
+    print(f"📂 DB: {db_path}")
+    if errors:
+        print(f"⚠️  {len(errors)} indicators failed (see log)")
+    print()
     print(f"{'Indicator':<18} {'Code':<10} {'Price':>12} {'Change':>8}")
     print("-" * 52)
     for d in all_data:
