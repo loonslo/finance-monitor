@@ -78,9 +78,13 @@ def fetch_html(url, retries=MAX_RETRIES):
             if e.code == 429:
                 # Rate limited, respect Retry-After header
                 retry_after = int(e.headers.get('Retry-After', RATE_LIMIT_DELAY))
-                warnings.warn(f"Rate limited (429) for {url}, waiting {retry_after}s", UserWarning)
-                time.sleep(retry_after)
-                continue
+                if attempt < retries - 1:
+                    warnings.warn(f"Rate limited (429) for {url}, waiting {retry_after}s (attempt {attempt+1}/{retries})", UserWarning)
+                    time.sleep(retry_after)
+                    continue
+                else:
+                    # All retries exhausted on rate limit
+                    raise RateLimitError(retry_after)
             elif e.code >= 500:
                 # Server error, retry
                 warnings.warn(f"Server error {e.code} for {url}, attempt {attempt+1}/{retries}", UserWarning)
@@ -263,6 +267,12 @@ def fetch_cnbc(indicator):
     url = indicator["url"]
     try:
         html = fetch_html(url)
+    except RateLimitError:
+        # Rate limit is a retriable error; let caller handle it
+        raise
+    except FetchError as e:
+        warnings.warn(f"Failed to fetch {indicator['code']}: {e}", UserWarning)
+        return None
     except Exception as e:
         warnings.warn(f"Failed to fetch {indicator['code']}: {e}", UserWarning)
         return None
