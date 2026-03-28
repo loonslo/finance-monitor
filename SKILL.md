@@ -31,12 +31,24 @@ metadata:
 
 | 指标 | 代码 | 数据源 | 说明 |
 |---|---|---|---|
-| 标普500 ETF | SPY | Nasdaq API（无需 Key） | 实时报价 |
-| 纳斯达克100 ETF | QQQ | Nasdaq API（无需 Key） | 实时报价 |
-| WTI 原油 | CL | Finnhub | 免费支持 |
-| 美元指数 | DX | Finnhub | 免费支持 |
-| 天然气 | NG | Finnhub | 免费支持 |
-| 白银 | SI | Finnhub | 免费支持 |
+| 美国10年期TIPS | US10YTIP | CNBC | 实时报价 |
+| 美国10年期国债 | US10Y | CNBC | 实时报价 |
+| 黄金 COMEX | GC | CNBC | 实时报价 |
+| WTI 原油 | CL | CNBC | 实时报价 |
+| 标普500 ETF | SPY | CNBC | 实时报价 |
+| 标普500指数 | SPX | CNBC | 实时报价 |
+| 纳斯达克100 ETF | QQQ | CNBC | 实时报价 |
+| 纳斯达克100指数 | NDX | CNBC | 实时报价 |
+| 美元指数 DXY | DXY | CNBC | 实时报价 |
+| 恐慌指数 VIX | VIX | CNBC | 实时报价 |
+| **苹果** | AAPL | CNBC | 实时报价 |
+| **微软** | MSFT | CNBC | 实时报价 |
+| **英伟达** | NVDA | CNBC | 实时报价 |
+| **亚马逊** | AMZN | CNBC | 实时报价 |
+| **Meta** | META | CNBC | 实时报价 |
+| **联合健康** | UNH | CNBC | 实时报价 |
+| **可口可乐** | KO | CNBC | 实时报价 |
+| **伯克希尔哈撒韦** | BRK.B | CNBC | 实时报价 |
 
 > **注意**：Finnhub 免费版不支持 SPX、NDX、黄金、VIX、国债收益率。如需这些指标，推荐使用 Finnhub Pro 或其他数据源。
 

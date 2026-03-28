@@ -4,6 +4,7 @@
 
 ## 🔴 High Priority
 
+- [x] Add 8 US stocks (AAPL, MSFT, NVDA, AMZN, META, UNH, KO, BRK.B) from CNBC (2026-03-28)
 - [ ] Support more financial data sources (Yahoo Finance, Alpha Vantage) to avoid single-source dependency
 - [ ] Add support for international markets (HK, JP, EU)
 - [ ] Schedule-based automatic fetching (cron / Windows Task Scheduler)

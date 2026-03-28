@@ -33,16 +33,28 @@ if sys.platform == "win32":
 # ── Indicators Config ─────────────────────────────────────────────────────────
 # CNBC URLs for each indicator
 INDICATORS = [
+    # -- 宏观经济指标 --
     {"code": "US10YTIP", "name_cn": "美国10年期TIPS", "url": "https://www.cnbc.com/quotes/US10YTIP"},
     {"code": "US10Y",    "name_cn": "美国10年期国债", "url": "https://www.cnbc.com/quotes/US10Y"},
     {"code": "GC",       "name_cn": "黄金 COMEX",     "url": "https://www.cnbc.com/quotes/@GC.1"},
     {"code": "CL",       "name_cn": "WTI 原油",       "url": "https://www.cnbc.com/quotes/@CL.1"},
+    # -- 指数 ETF --
     {"code": "SPY",      "name_cn": "标普500 ETF",    "url": "https://www.cnbc.com/quotes/SPY"},
     {"code": "SPX",      "name_cn": "标普500指数",    "url": "https://www.cnbc.com/quotes/SPX"},
     {"code": "QQQ",      "name_cn": "纳斯达克100 ETF","url": "https://www.cnbc.com/quotes/QQQ"},
     {"code": "NDX",      "name_cn": "纳斯达克100指数", "url": "https://www.cnbc.com/quotes/NDX"},
+    # -- 美元 & VIX --
     {"code": "DXY",      "name_cn": "美元指数 DXY",   "url": "https://www.cnbc.com/quotes/.DXY"},
     {"code": "VIX",      "name_cn": "恐慌指数 VIX",   "url": "https://www.cnbc.com/quotes/.VIX"},
+    # -- 美股个股（Magnificent 7 + 核心股）--
+    {"code": "AAPL",     "name_cn": "苹果",           "url": "https://www.cnbc.com/quotes/AAPL"},
+    {"code": "MSFT",     "name_cn": "微软",           "url": "https://www.cnbc.com/quotes/MSFT"},
+    {"code": "NVDA",     "name_cn": "英伟达",         "url": "https://www.cnbc.com/quotes/NVDA"},
+    {"code": "AMZN",     "name_cn": "亚马逊",         "url": "https://www.cnbc.com/quotes/AMZN"},
+    {"code": "META",     "name_cn": "Meta",           "url": "https://www.cnbc.com/quotes/META"},
+    {"code": "UNH",      "name_cn": "联合健康",       "url": "https://www.cnbc.com/quotes/UNH"},
+    {"code": "KO",       "name_cn": "可口可乐",       "url": "https://www.cnbc.com/quotes/KO"},
+    {"code": "BRK.B",    "name_cn": "伯克希尔哈撒韦", "url": "https://www.cnbc.com/quotes/BRK.B"},
 ]
 
 PROTECTED = (
@@ -177,7 +189,7 @@ def parse_html_content(html, code):
                 dot_prefix_codes = {'DXY', 'VIX'}
                 tp_variants = [re.escape(code)]
                 if code in dot_prefix_codes:
-                    tp_variants.append('\\.' + re.escape(code))
+                    tp_variants.append('\\' + re.escape(code))  # e.g. .DXY → \.DXY
                 tp_variants.append('@' + re.escape(code) + r'\.[0-9]+')
                 ticker_found = False
                 for tp_pat in tp_variants:
