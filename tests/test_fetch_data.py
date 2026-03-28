@@ -349,13 +349,15 @@ class TestIndicatorsConfig:
         expected_codes = {
             "US10YTIP", "US10Y", "GC", "CL", "SPY",
             "SPX", "QQQ", "NDX", "DXY", "VIX",
+            "AAPL", "MSFT", "NVDA", "AMZN", "META",
+            "UNH", "KO", "BRK.B",
         }
         actual_codes = {ind["code"] for ind in fd.INDICATORS}
         assert expected_codes == actual_codes, \
             f"Expected {expected_codes}, got {actual_codes}"
 
-    def test_ten_indicators(self):
-        assert len(fd.INDICATORS) == 10
+    def test_eighteen_indicators(self):
+        assert len(fd.INDICATORS) == 18
 
     def test_no_empty_name_cn(self):
         for ind in fd.INDICATORS:

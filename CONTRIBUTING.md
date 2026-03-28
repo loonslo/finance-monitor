@@ -4,7 +4,7 @@ Thank you for your interest in contributing to finance-monitor!
 
 ## Project Overview
 
-finance-monitor fetches 10 financial indicators (US10YTIP, US10Y, GC, CL, SPY, SPX, QQQ, NDX, DXY, VIX) from CNBC and stores them in a SQLite database.
+finance-monitor fetches 18 financial indicators (US10YTIP, US10Y, GC, CL, SPY, SPX, QQQ, NDX, DXY, VIX, AAPL, MSFT, NVDA, AMZN, META, UNH, KO, BRK.B) from CNBC and stores them in a SQLite database.
 
 ## How to Contribute
 
