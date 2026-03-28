@@ -28,7 +28,7 @@
 
 ## ✅ Completed
 
-- [x] Fetch 10 financial indicators from CNBC (2026-03-24)
+- [x] Fetch 18 financial indicators from CNBC (2026-03-24)
 - [x] SQLite database storage with `indicators` and `fetch_log` tables (2026-03-24)
 - [x] Error handling: FetchError, RateLimitError, DatabaseError (2026-03-24)
 - [x] Retry logic: 3 retries with exponential backoff for network failures (2026-03-24)

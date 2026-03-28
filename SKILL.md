@@ -1,6 +1,6 @@
 ---
 name: finance-monitor
-description: 从 Nasdaq API 和 Finnhub 抓取金融指标数据（ETF、原油、美元指数、天然气、白银），写入本地 SQLite 数据库。无需注册即可获取 ETF 数据，Finnhub 免费账户覆盖大宗商品。
+description: 从 CNBC 抓取 18 个金融指标数据（宏观经济、指数ETF、美股个股），写入本地 SQLite 数据库。纯 stdlib，无需任何 API Key。
 metadata:
   openclaw:
     requires:

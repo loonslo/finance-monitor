@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Finance Monitor - Fetch 10 financial indicators from CNBC via web_fetch.
+Finance Monitor - Fetch 18 financial indicators from CNBC via web_fetch.
 Writes to SQLite database.
 """
 
@@ -420,7 +420,7 @@ def main():
         print(f"{d['name_cn']:<18} {d['code']:<10} {curr_str:>12} {chg_str:>8}")
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Finance Monitor — fetch 10 indicators from CNBC")
+    p = argparse.ArgumentParser(description="Finance Monitor — fetch 18 indicators from CNBC")
     p.add_argument("--db-path", required=True)
     p.add_argument("--log-path", default=None)
     return p.parse_args()
